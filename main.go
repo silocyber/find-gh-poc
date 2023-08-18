@@ -308,7 +308,7 @@ func writeOutput(fileName string, silent bool) {
 	}
 }
 
-func processResults() {
+func processResults(targetCVE string) {
 	re := regexp.MustCompile(CVERegex)
 
 	for i, repo := range reposResults {
@@ -334,9 +334,16 @@ func processResults() {
 		if len(ids) > 0 {
 			reposResults[i].CVEIDs = make([]string, 0)
 			for id := range ids {
-				reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
-				reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
+				if id == targetCVE {
+					reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
+					reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
+				}
 			}
+		}
+
+		if len(reposResults[i].CVEIDs) == 0 {
+			reposResults = append(reposResults[:i], reposResults[i+1:]...)
+			i-- // adjust index after removal
 		}
 
 		reposResults[i].Readme = nil
