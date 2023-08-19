@@ -96,10 +96,7 @@ var (
 	delayMutex       = &sync.Mutex{}
 	outputFile       string
 	silent           bool
-)
-
-var (
-	targetCVE string
+	targetCVE        string
 )
 
 func getReadme(repoUrl string) string {
