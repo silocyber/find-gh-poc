@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -345,11 +344,6 @@ func processResults() {
 			}
 		}
 
-		jsonResults, err := json.Marshal(reposResults)
-		if err != nil {
-			log.Fatal(err)
-		}
-		os.Stdout.WriteString(string(jsonResults))
 		reposResults[i].Readme = nil
 		reposResults[i].Topics = nil
 	}
