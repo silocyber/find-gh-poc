@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -95,6 +96,10 @@ var (
 	delayMutex       = &sync.Mutex{}
 	outputFile       string
 	silent           bool
+)
+
+var (
+	targetCVE string
 )
 
 func getReadme(repoUrl string) string {
@@ -308,7 +313,9 @@ func writeOutput(fileName string, silent bool) {
 	}
 }
 
-func processResults(targetCVE string) {
+func processResults() {
+	s := "Inside processResults"
+	os.Stdout.WriteString(s)
 	re := regexp.MustCompile(CVERegex)
 
 	for i, repo := range reposResults {
@@ -341,11 +348,11 @@ func processResults(targetCVE string) {
 			}
 		}
 
-		if len(reposResults[i].CVEIDs) == 0 {
-			reposResults = append(reposResults[:i], reposResults[i+1:]...)
-			i-- // adjust index after removal
+		jsonResults, err := json.Marshal(reposResults)
+		if err != nil {
+			log.Fatal(err)
 		}
-
+		os.Stdout.WriteString(string(jsonResults))
 		reposResults[i].Readme = nil
 		reposResults[i].Topics = nil
 	}
@@ -425,6 +432,10 @@ func main() {
 
 		searchQuery = strings.Trim(string(queryData), " \n\r\t")
 	}
+
+	// Set a global variable for targetCVE to equal the value of searchQuery
+	targetCVE = searchQuery
+	os.Stdout.WriteString(targetCVE)
 
 	searchQuery += " in:readme in:description in:name"
 	getRepos(searchQuery, githubCreateDate, time.Now().UTC())
