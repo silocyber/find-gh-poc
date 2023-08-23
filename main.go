@@ -295,14 +295,14 @@ func handleGraphQLAPIError(err error) {
 			time.Sleep(untilNextReset + 3*time.Second)
 			return
 		} else {
-			processResults(reposResults, targetCVE)
+			processResults()
 			writeOutput(outputFile, false)
 			fmt.Println("\n" + err.Error())
 			fmt.Println("Next reset at " + rateLimit.ResetAt.Format(time.RFC1123))
 			os.Exit(0)
 		}
 	}
-	processResults(reposResults, targetCVE)
+	processResults()
 	writeOutput(outputFile, false)
 	fmt.Println("\n" + err.Error())
 	os.Exit(0)
@@ -374,7 +374,7 @@ func writeOutput(fileName string, silent bool) {
 	}
 }
 
-/* func processResults() {
+func processResults() {
 	s := "Inside processResults"
 	os.Stdout.WriteString(s)
 	re := regexp.MustCompile(CVERegex)
@@ -402,7 +402,7 @@ func writeOutput(fileName string, silent bool) {
 		if len(ids) > 0 {
 			reposResults[i].CVEIDs = make([]string, 0)
 			for id := range ids {
-				if id == targetCVE {
+				if strings.Contains(targetCVE, id) {
 					reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
 					reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
 				}
@@ -412,9 +412,9 @@ func writeOutput(fileName string, silent bool) {
 		reposResults[i].Readme = nil
 		reposResults[i].Topics = nil
 	}
-} */
+}
 
-func processResults(results []RepositoryResult, target string) {
+/* func processResults(results []RepositoryResult, target string) {
 	fmt.Println("Entering processResults function with target:", target)
 	s := "Inside processResults"
 	os.Stdout.WriteString(s)
@@ -440,7 +440,7 @@ func processResults(results []RepositoryResult, target string) {
 		}
 	}
 	fmt.Println("Exiting processResults function")
-}
+} */
 
 func main() {
 	token := flag.String("token-string", "", "Github token")
@@ -523,7 +523,7 @@ func main() {
 	searchQuery += " in:readme in:description in:name"
 	getRepos(searchQuery, githubCreateDate, time.Now().UTC())
 
-	processResults(reposResults, targetCVE)
+	processResults()
 	writeOutput(outputFile, false)
 
 }
