@@ -133,6 +133,7 @@ func getRepos(query string, startingDate time.Time, endingDate time.Time) {
 	querySplit := strings.Split(query, "created:")
 	query = strings.Trim(querySplit[0], " ") + " created:" +
 		startingDate.Format(time.RFC3339) + ".." + endingDate.Format(time.RFC3339)
+	query += " in:readme in:description in:name " + targetCVE
 	variables := map[string]interface{}{
 		"query": githubv4.String(query),
 		"after": (*githubv4.String)(nil),
@@ -523,7 +524,7 @@ func main() {
 	for scanner.Scan() {
 		searchQuery := scanner.Text()
 		targetCVE = searchQuery
-		searchQuery += " in:readme in:description in:name"
+		//searchQuery += " in:readme in:description in:name"
 		getRepos(searchQuery, githubCreateDate, time.Now().UTC())
 
 		processResults()
