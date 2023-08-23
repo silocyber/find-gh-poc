@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -494,7 +493,7 @@ func main() {
 		}
 		defer file.Close()
 
-		tokenData, err := ioutil.ReadAll(file)
+		tokenData, err := io.ReadAll(file)
 		if err != nil {
 			fmt.Println("Couldn't read from token file!")
 			os.Exit(1)
