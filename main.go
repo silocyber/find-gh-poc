@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -289,6 +290,7 @@ func handleGraphQLAPIError(err error) {
 func writeOutput(fileName string, silent bool) {
 	os.Stdout.WriteString("Entering writeOutput function with fileName: " + fileName + "\n")
 	if len(reposPerCVE[targetCVE]) == 0 {
+		os.Stdout.WriteString("No Repos for " + targetCVE + "\n")
 		return
 	}
 	output, err := os.Create(fileName)
@@ -319,8 +321,7 @@ func writeOutput(fileName string, silent bool) {
 
 func processResults(results []RepositoryResult, target string) {
 	os.Stdout.WriteString("Entering processResults function with target: " + target + "\n")
-	s := "Inside processResults\n"
-	os.Stdout.WriteString(s)
+	os.Stdout.WriteString(fmt.Sprintf("Results: %+v\n", results))
 	re := regexp.MustCompile(CVERegex)
 
 	for _, repo := range results {
