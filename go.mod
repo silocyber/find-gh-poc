@@ -1,6 +1,6 @@
 module find-gh-poc
 
-go 1.17
+go 1.21
 
 require (
 	github.com/schollz/progressbar/v3 v3.8.5
