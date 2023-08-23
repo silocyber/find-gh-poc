@@ -1,4 +1,4 @@
-module github.com/silocyber/find-gh-poc
+module find-gh-poc
 
 go 1.17
 

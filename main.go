@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -180,7 +179,7 @@ errHandle:
 							delayMutex.Unlock()
 							continue
 						}
-						untilNextReset := rateLimit.ResetAt.Sub(time.Now()).Milliseconds()
+						untilNextReset := time.Until(rateLimit.ResetAt).Milliseconds()
 						if untilNextReset < 0 {
 							untilNextReset = time.Hour.Milliseconds()
 						}
@@ -265,7 +264,7 @@ errHandle:
 	}
 }
 
-func handleGraphQLAPIError(err error) {
+/* func handleGraphQLAPIError(err error) {
 	if err == nil || strings.Contains(err.Error(), "limit exceeded") {
 		untilNextReset := rateLimit.ResetAt.Sub(time.Now())
 		if untilNextReset < time.Minute {
@@ -284,9 +283,30 @@ func handleGraphQLAPIError(err error) {
 	writeOutput(outputFile, silent)
 	fmt.Println("\n" + err.Error())
 	os.Exit(0)
+} */
+
+func handleGraphQLAPIError(err error) {
+	if err == nil || strings.Contains(err.Error(), "limit exceeded") {
+		untilNextReset := time.Until(rateLimit.ResetAt)
+		if untilNextReset < time.Minute {
+			rateLimit.ResetAt = time.Now().Add(untilNextReset).Add(time.Hour)
+			time.Sleep(untilNextReset + 3*time.Second)
+			return
+		} else {
+			processResults(reposResults, targetCVE)
+			writeOutput(outputFile, silent)
+			fmt.Println("\n" + err.Error())
+			fmt.Println("Next reset at " + rateLimit.ResetAt.Format(time.RFC1123))
+			os.Exit(0)
+		}
+	}
+	processResults(reposResults, targetCVE)
+	writeOutput(outputFile, silent)
+	fmt.Println("\n" + err.Error())
+	os.Exit(0)
 }
 
-func writeOutput(fileName string, silent bool) {
+/* func writeOutput(fileName string, silent bool) {
 	if len(reposResults) == 0 {
 		return
 	}
@@ -307,9 +327,36 @@ func writeOutput(fileName string, silent bool) {
 		data, _ := json.MarshalIndent(reposResults, "", "   ")
 		fmt.Println(string(data))
 	}
+} */
+
+func writeOutput(fileName string, silent bool) {
+	if len(reposPerCVE[targetCVE]) == 0 {
+		return
+	}
+	output, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("Couldn't create output file")
+		return
+	}
+	defer output.Close()
+
+	for _, repoURL := range reposPerCVE[targetCVE] {
+		_, err := io.WriteString(output, targetCVE+" - "+repoURL+"\n")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+		}
+	}
+
+	// If not silent, print the matching repositories to stdout
+	if !silent {
+		for _, repoURL := range reposPerCVE[targetCVE] {
+			fmt.Println(targetCVE + " - " + repoURL)
+		}
+	}
 }
 
-func processResults() {
+/* func processResults() {
 	s := "Inside processResults"
 	os.Stdout.WriteString(s)
 	re := regexp.MustCompile(CVERegex)
@@ -347,6 +394,32 @@ func processResults() {
 		reposResults[i].Readme = nil
 		reposResults[i].Topics = nil
 	}
+} */
+
+func processResults(results []RepositoryResult, target string) {
+	s := "Inside processResults"
+	os.Stdout.WriteString(s)
+	re := regexp.MustCompile(CVERegex)
+
+	for _, repo := range results {
+		matches := re.FindAllStringSubmatch(repo.Url, -1)
+		matches = append(matches, re.FindAllStringSubmatch(repo.Description, -1)...)
+		if repo.Readme != nil {
+			matches = append(matches, re.FindAllStringSubmatch(*repo.Readme, -1)...)
+		}
+		for _, topic := range repo.Topics {
+			matches = append(matches, re.FindAllStringSubmatch(topic, -1)...)
+		}
+
+		for _, m := range matches {
+			if len(m) > 0 && m[0] != "" {
+				cleanedCVE := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(m[0], "_", "-"), "–", "-"))
+				if cleanedCVE == target {
+					reposPerCVE[cleanedCVE] = append(reposPerCVE[cleanedCVE], repo.Url)
+				}
+			}
+		}
+	}
 }
 
 func main() {
@@ -362,7 +435,7 @@ func main() {
 
 	go func() {
 		signalChannel := make(chan os.Signal, 1)
-		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGKILL)
+		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 		<-signalChannel
 
 		fmt.Println("\nProgram interrupted, exiting...")
@@ -425,13 +498,12 @@ func main() {
 	}
 
 	// Set a global variable for targetCVE to equal the value of searchQuery
-	targetCVE = searchQuery
-	os.Stdout.WriteString(targetCVE)
+	targetCVE := searchQuery
 
 	searchQuery += " in:readme in:description in:name"
 	getRepos(searchQuery, githubCreateDate, time.Now().UTC())
 
-	processResults()
+	processResults(reposResults, targetCVE)
 	writeOutput(outputFile, silent)
 
 }
