@@ -294,14 +294,14 @@ func handleGraphQLAPIError(err error) {
 			return
 		} else {
 			processResults(reposResults, targetCVE)
-			writeOutput(outputFile, silent)
+			writeOutput(outputFile, false)
 			fmt.Println("\n" + err.Error())
 			fmt.Println("Next reset at " + rateLimit.ResetAt.Format(time.RFC1123))
 			os.Exit(0)
 		}
 	}
 	processResults(reposResults, targetCVE)
-	writeOutput(outputFile, silent)
+	writeOutput(outputFile, false)
 	fmt.Println("\n" + err.Error())
 	os.Exit(0)
 }
@@ -330,6 +330,7 @@ func handleGraphQLAPIError(err error) {
 } */
 
 func writeOutput(fileName string, silent bool) {
+	fmt.Println(reposPerCVE[targetCVE])
 	if len(reposPerCVE[targetCVE]) == 0 {
 		return
 	}
@@ -504,6 +505,6 @@ func main() {
 	getRepos(searchQuery, githubCreateDate, time.Now().UTC())
 
 	processResults(reposResults, targetCVE)
-	writeOutput(outputFile, silent)
+	writeOutput(outputFile, false)
 
 }
