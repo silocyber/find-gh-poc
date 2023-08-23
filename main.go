@@ -340,7 +340,7 @@ func processResults(results []RepositoryResult, target string) {
 			if len(m) > 0 && m[0] != "" {
 				cleanedCVE := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(m[0], "_", "-"), "–", "-"))
 				os.Stdout.WriteString(fmt.Sprintf("cleanedCVE: %+v\n", cleanedCVE))
-				if strings.Contains(cleanedCVE, target) {
+				if strings.Contains(target, cleanedCVE) {
 					reposPerCVE[cleanedCVE] = append(reposPerCVE[cleanedCVE], repo.Url)
 				}
 			}
