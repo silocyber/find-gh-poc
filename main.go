@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -129,7 +128,7 @@ func getReadme(repoUrl string) string {
 }
 
 func getRepos(query string, startingDate time.Time, endingDate time.Time) {
-	fmt.Println("Entering getRepos function with query:", query)
+	os.Stdout.WriteString("Entering getRepos function with query: " + query + "\n")
 	querySplit := strings.Split(query, "created:")
 	query = strings.Trim(querySplit[0], " ") + " created:" +
 		startingDate.Format(time.RFC3339) + ".." + endingDate.Format(time.RFC3339)
@@ -161,7 +160,7 @@ errHandle:
 			progressbar.OptionSetItsString("res"),
 			progressbar.OptionShowIts(),
 			progressbar.OptionShowCount(),
-			progressbar.OptionOnCompletion(func() { fmt.Println() }),
+			progressbar.OptionOnCompletion(func() { os.Stdout.WriteString("\n") }),
 		)
 		barInitialized = true
 		if adjustDelay {
@@ -263,29 +262,8 @@ errHandle:
 
 		variables["after"] = githubv4.NewString(CVEQuery.Search.PageInfo.EndCursor)
 	}
-	fmt.Println("Exiting getRepos function")
+	os.Stdout.WriteString("Exiting getRepos function\n")
 }
-
-/* func handleGraphQLAPIError(err error) {
-	if err == nil || strings.Contains(err.Error(), "limit exceeded") {
-		untilNextReset := rateLimit.ResetAt.Sub(time.Now())
-		if untilNextReset < time.Minute {
-			rateLimit.ResetAt = time.Now().Add(untilNextReset).Add(time.Hour)
-			time.Sleep(untilNextReset + 3*time.Second)
-			return
-		} else {
-			processResults()
-			writeOutput(outputFile, silent)
-			fmt.Println("\n" + err.Error())
-			fmt.Println("Next reset at " + rateLimit.ResetAt.Format(time.RFC1123))
-			os.Exit(0)
-		}
-	}
-	processResults()
-	writeOutput(outputFile, silent)
-	fmt.Println("\n" + err.Error())
-	os.Exit(0)
-} */
 
 func handleGraphQLAPIError(err error) {
 	if err == nil || strings.Contains(err.Error(), "limit exceeded") {
@@ -297,126 +275,51 @@ func handleGraphQLAPIError(err error) {
 		} else {
 			processResults(reposResults, targetCVE)
 			writeOutput(outputFile, false)
-			fmt.Println("\n" + err.Error())
-			fmt.Println("Next reset at " + rateLimit.ResetAt.Format(time.RFC1123))
+			os.Stdout.WriteString("\n" + err.Error() + "\n")
+			os.Stdout.WriteString("Next reset at " + rateLimit.ResetAt.Format(time.RFC1123) + "\n")
 			os.Exit(0)
 		}
 	}
 	processResults(reposResults, targetCVE)
 	writeOutput(outputFile, false)
-	fmt.Println("\n" + err.Error())
+	os.Stdout.WriteString("\n" + err.Error() + "\n")
 	os.Exit(0)
 }
 
-/* func writeOutput(fileName string, silent bool) {
-	if len(reposResults) == 0 {
-		return
-	}
-	output, err := os.Create(fileName)
-	if err != nil {
-		fmt.Println(err)
-		fmt.Println("Couldn't create output file")
-	}
-	defer output.Close()
-
-	for id, repoURLs := range reposPerCVE {
-		for _, r := range repoURLs {
-			_, _ = io.WriteString(output, id+" - "+r+"\n")
-		}
-	}
-
-	if !silent {
-		data, _ := json.MarshalIndent(reposResults, "", "   ")
-		fmt.Println(string(data))
-	}
-} */
-
 func writeOutput(fileName string, silent bool) {
-	fmt.Println("Entering writeOutput function with fileName:", fileName)
+	os.Stdout.WriteString("Entering writeOutput function with fileName: " + fileName + "\n")
 	if len(reposPerCVE[targetCVE]) == 0 {
 		return
 	}
-	/* output, err := os.Create(fileName)
-	if err != nil {
-		fmt.Println(err)
-		fmt.Println("Couldn't create output file")
-		return
-	} */
 	output, err := os.Create(fileName)
 	if err != nil {
-		fmt.Println("Error creating file:", err)
+		os.Stdout.WriteString("Error creating file: " + err.Error() + "\n")
 		return
 	}
-	fmt.Println("File created successfully")
+	os.Stdout.WriteString("File created successfully\n")
 
 	defer output.Close()
 
-	/* for _, repoURL := range reposPerCVE[targetCVE] {
-		_, err := io.WriteString(output, targetCVE+" - "+repoURL+"\n")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-	} */
 	for _, repoURL := range reposPerCVE[targetCVE] {
-		fmt.Println("Writing to file:", repoURL)
+		os.Stdout.WriteString("Writing to file: " + repoURL + "\n")
 		_, err := io.WriteString(output, targetCVE+" - "+repoURL+"\n")
 		if err != nil {
-			fmt.Println("Error writing to file:", err)
+			os.Stdout.WriteString("Error writing to file: " + err.Error() + "\n")
 		}
-		fmt.Println("Successfully wrote to file:", repoURL)
+		os.Stdout.WriteString("Successfully wrote to file: " + repoURL + "\n")
 	}
 
 	// If not silent, print the matching repositories to stdout
 	if !silent {
 		for _, repoURL := range reposPerCVE[targetCVE] {
-			fmt.Println(targetCVE + " - " + repoURL)
+			os.Stdout.WriteString(targetCVE + " - " + repoURL + "\n")
 		}
 	}
 }
 
-/* func processResults() {
-	s := "Inside processResults"
-	os.Stdout.WriteString(s)
-	re := regexp.MustCompile(CVERegex)
-
-	for i, repo := range reposResults {
-		ids := make(map[string]bool, 0)
-
-		matches := re.FindAllStringSubmatch(repo.Url, -1)
-		matches = append(matches, re.FindAllStringSubmatch(repo.Description, -1)...)
-		matches = append(matches, re.FindAllStringSubmatch(*repo.Readme, -1)...)
-		for _, topic := range repo.Topics {
-			matches = append(matches, re.FindAllStringSubmatch(topic, -1)...)
-		}
-
-		for _, m := range matches {
-			if m != nil && len(m) > 0 {
-				if m[0] != "" {
-					m[0] = strings.ToUpper(m[0])
-					m[0] = strings.ReplaceAll(m[0], "_", "-")
-					ids[strings.ReplaceAll(m[0], "–", "-")] = true
-				}
-			}
-		}
-
-		if len(ids) > 0 {
-			reposResults[i].CVEIDs = make([]string, 0)
-			for id := range ids {
-				if id == targetCVE {
-					reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
-					reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
-				}
-			}
-		}
-
-		reposResults[i].Readme = nil
-		reposResults[i].Topics = nil
-	}
-} */
-
 func processResults(results []RepositoryResult, target string) {
-	fmt.Println("Entering processResults function with target:", target)
-	s := "Inside processResults"
+	os.Stdout.WriteString("Entering processResults function with target: " + target + "\n")
+	s := "Inside processResults\n"
 	os.Stdout.WriteString(s)
 	re := regexp.MustCompile(CVERegex)
 
@@ -439,7 +342,7 @@ func processResults(results []RepositoryResult, target string) {
 			}
 		}
 	}
-	fmt.Println("Exiting processResults function")
+	os.Stdout.WriteString("Exiting processResults function\n")
 }
 
 func main() {
@@ -458,31 +361,31 @@ func main() {
 		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 		<-signalChannel
 
-		fmt.Println("\nProgram interrupted, exiting...")
+		os.Stdout.WriteString("\nProgram interrupted, exiting...\n")
 		os.Exit(0)
 	}()
 
 	if (*token == "" && *tokenFile == "") || outputFile == "" {
-		fmt.Println("Token and output file must be specified!")
+		os.Stdout.WriteString("Token and output file must be specified!\n")
 		os.Exit(1)
 	}
 
 	if *query == "" && *queryFile == "" {
-		fmt.Println("Query must be specified!")
+		os.Stdout.WriteString("Query must be specified!\n")
 		os.Exit(1)
 	}
 	githubToken := ""
 	if *tokenFile != "" {
 		file, err := os.Open(*tokenFile)
 		if err != nil {
-			fmt.Println("Couldn't open file to read token!")
+			os.Stdout.WriteString("Couldn't open file to read token!\n")
 			os.Exit(1)
 		}
 		defer file.Close()
 
 		tokenData, err := ioutil.ReadAll(file)
 		if err != nil {
-			fmt.Println("Couldn't read from token file!")
+			os.Stdout.WriteString("Couldn't read from token file!")
 			os.Exit(1)
 		}
 
@@ -503,14 +406,14 @@ func main() {
 	if searchQuery == "" {
 		file, err := os.Open(*queryFile)
 		if err != nil {
-			fmt.Println("Couldn't open file to read query!")
+			os.Stdout.WriteString("Couldn't open file to read query!")
 			os.Exit(1)
 		}
 		defer file.Close()
 
 		queryData, err := ioutil.ReadAll(file)
 		if err != nil {
-			fmt.Println("Couldn't read from query file!")
+			os.Stdout.WriteString("Couldn't read from query file!")
 			os.Exit(1)
 		}
 
