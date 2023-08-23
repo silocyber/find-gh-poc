@@ -360,6 +360,7 @@ func processResults() {
 		if len(ids) > 0 {
 			reposResults[i].CVEIDs = make([]string, 0)
 			for id := range ids {
+				os.Stdout.WriteString(fmt.Sprintf("ID: %+v\n", id))
 				if strings.Contains(targetCVE, id) {
 					reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
 					reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
