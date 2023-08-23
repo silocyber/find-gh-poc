@@ -129,6 +129,7 @@ func getReadme(repoUrl string) string {
 }
 
 func getRepos(query string, startingDate time.Time, endingDate time.Time) {
+	fmt.Println("Entering getRepos function with query:", query)
 	querySplit := strings.Split(query, "created:")
 	query = strings.Trim(querySplit[0], " ") + " created:" +
 		startingDate.Format(time.RFC3339) + ".." + endingDate.Format(time.RFC3339)
@@ -262,6 +263,7 @@ errHandle:
 
 		variables["after"] = githubv4.NewString(CVEQuery.Search.PageInfo.EndCursor)
 	}
+	fmt.Println("Exiting getRepos function")
 }
 
 /* func handleGraphQLAPIError(err error) {
@@ -330,23 +332,38 @@ func handleGraphQLAPIError(err error) {
 } */
 
 func writeOutput(fileName string, silent bool) {
-	fmt.Println(reposPerCVE[targetCVE])
+	fmt.Println("Entering writeOutput function with fileName:", fileName)
 	if len(reposPerCVE[targetCVE]) == 0 {
 		return
 	}
-	output, err := os.Create(fileName)
+	/* output, err := os.Create(fileName)
 	if err != nil {
 		fmt.Println(err)
 		fmt.Println("Couldn't create output file")
 		return
+	} */
+	output, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		return
 	}
+	fmt.Println("File created successfully")
+
 	defer output.Close()
 
-	for _, repoURL := range reposPerCVE[targetCVE] {
+	/* for _, repoURL := range reposPerCVE[targetCVE] {
 		_, err := io.WriteString(output, targetCVE+" - "+repoURL+"\n")
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 		}
+	} */
+	for _, repoURL := range reposPerCVE[targetCVE] {
+		fmt.Println("Writing to file:", repoURL)
+		_, err := io.WriteString(output, targetCVE+" - "+repoURL+"\n")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+		}
+		fmt.Println("Successfully wrote to file:", repoURL)
 	}
 
 	// If not silent, print the matching repositories to stdout
@@ -398,6 +415,7 @@ func writeOutput(fileName string, silent bool) {
 } */
 
 func processResults(results []RepositoryResult, target string) {
+	fmt.Println("Entering processResults function with target:", target)
 	s := "Inside processResults"
 	os.Stdout.WriteString(s)
 	re := regexp.MustCompile(CVERegex)
@@ -421,6 +439,7 @@ func processResults(results []RepositoryResult, target string) {
 			}
 		}
 	}
+	fmt.Println("Exiting processResults function")
 }
 
 func main() {
