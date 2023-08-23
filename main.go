@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -94,7 +96,6 @@ var (
 	delayMutex       = &sync.Mutex{}
 	outputFile       string
 	silent           bool
-	targetCVE        string
 )
 
 func getReadme(repoUrl string) string {
@@ -129,7 +130,6 @@ func getReadme(repoUrl string) string {
 }
 
 func getRepos(query string, startingDate time.Time, endingDate time.Time) {
-	fmt.Println("Entering getRepos function with query:", query)
 	querySplit := strings.Split(query, "created:")
 	query = strings.Trim(querySplit[0], " ") + " created:" +
 		startingDate.Format(time.RFC3339) + ".." + endingDate.Format(time.RFC3339)
@@ -180,7 +180,7 @@ errHandle:
 							delayMutex.Unlock()
 							continue
 						}
-						untilNextReset := time.Until(rateLimit.ResetAt).Milliseconds()
+						untilNextReset := rateLimit.ResetAt.Sub(time.Now()).Milliseconds()
 						if untilNextReset < 0 {
 							untilNextReset = time.Hour.Milliseconds()
 						}
@@ -263,10 +263,9 @@ errHandle:
 
 		variables["after"] = githubv4.NewString(CVEQuery.Search.PageInfo.EndCursor)
 	}
-	fmt.Println("Exiting getRepos function")
 }
 
-/* func handleGraphQLAPIError(err error) {
+func handleGraphQLAPIError(err error) {
 	if err == nil || strings.Contains(err.Error(), "limit exceeded") {
 		untilNextReset := rateLimit.ResetAt.Sub(time.Now())
 		if untilNextReset < time.Minute {
@@ -285,30 +284,9 @@ errHandle:
 	writeOutput(outputFile, silent)
 	fmt.Println("\n" + err.Error())
 	os.Exit(0)
-} */
-
-func handleGraphQLAPIError(err error) {
-	if err == nil || strings.Contains(err.Error(), "limit exceeded") {
-		untilNextReset := time.Until(rateLimit.ResetAt)
-		if untilNextReset < time.Minute {
-			rateLimit.ResetAt = time.Now().Add(untilNextReset).Add(time.Hour)
-			time.Sleep(untilNextReset + 3*time.Second)
-			return
-		} else {
-			processResults()
-			writeOutput(outputFile, false)
-			fmt.Println("\n" + err.Error())
-			fmt.Println("Next reset at " + rateLimit.ResetAt.Format(time.RFC1123))
-			os.Exit(0)
-		}
-	}
-	processResults()
-	writeOutput(outputFile, false)
-	fmt.Println("\n" + err.Error())
-	os.Exit(0)
 }
 
-/* func writeOutput(fileName string, silent bool) {
+func writeOutput(fileName string, silent bool) {
 	if len(reposResults) == 0 {
 		return
 	}
@@ -329,54 +307,9 @@ func handleGraphQLAPIError(err error) {
 		data, _ := json.MarshalIndent(reposResults, "", "   ")
 		fmt.Println(string(data))
 	}
-} */
-
-func writeOutput(fileName string, silent bool) {
-	fmt.Println("Entering writeOutput function with fileName:", fileName)
-	if len(reposPerCVE[targetCVE]) == 0 {
-		return
-	}
-	/* output, err := os.Create(fileName)
-	if err != nil {
-		fmt.Println(err)
-		fmt.Println("Couldn't create output file")
-		return
-	} */
-	output, err := os.Create(fileName)
-	if err != nil {
-		fmt.Println("Error creating file:", err)
-		return
-	}
-	fmt.Println("File created successfully")
-
-	defer output.Close()
-
-	/* for _, repoURL := range reposPerCVE[targetCVE] {
-		_, err := io.WriteString(output, targetCVE+" - "+repoURL+"\n")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-	} */
-	for _, repoURL := range reposPerCVE[targetCVE] {
-		fmt.Println("Writing to file:", repoURL)
-		_, err := io.WriteString(output, targetCVE+" - "+repoURL+"\n")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-		fmt.Println("Successfully wrote to file:", repoURL)
-	}
-
-	// If not silent, print the matching repositories to stdout
-	if !silent {
-		for _, repoURL := range reposPerCVE[targetCVE] {
-			fmt.Println(targetCVE + " - " + repoURL)
-		}
-	}
 }
 
 func processResults() {
-	s := "Inside processResults"
-	os.Stdout.WriteString(s)
 	re := regexp.MustCompile(CVERegex)
 
 	for i, repo := range reposResults {
@@ -402,10 +335,8 @@ func processResults() {
 		if len(ids) > 0 {
 			reposResults[i].CVEIDs = make([]string, 0)
 			for id := range ids {
-				if strings.Contains(targetCVE, id) {
-					reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
-					reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
-				}
+				reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
+				reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
 			}
 		}
 
@@ -414,38 +345,93 @@ func processResults() {
 	}
 }
 
-/* func processResults(results []RepositoryResult, target string) {
-	fmt.Println("Entering processResults function with target:", target)
-	s := "Inside processResults"
-	os.Stdout.WriteString(s)
-	re := regexp.MustCompile(CVERegex)
+/*
+	 func main() {
+		token := flag.String("token-string", "", "Github token")
+		tokenFile := flag.String("token-file", "", "File to read Github token from")
+		query := flag.String("query-string", "", "GraphQL search query")
+		queryFile := flag.String("query-file", "", "File to read GraphQL search query from")
+		flag.StringVar(&outputFile, "o", "", "Output file name")
+		flag.BoolVar(&silent, "silent", false, "Don't print JSON output to stdout")
+		flag.IntVar(&requestDelay, "delay", 0, "Time delay after every GraphQL request [ms]")
+		flag.BoolVar(&adjustDelay, "adjust-delay", false, "Automatically adjust time delay between requests")
+		flag.Parse()
 
-	for _, repo := range results {
-		matches := re.FindAllStringSubmatch(repo.Url, -1)
-		matches = append(matches, re.FindAllStringSubmatch(repo.Description, -1)...)
-		if repo.Readme != nil {
-			matches = append(matches, re.FindAllStringSubmatch(*repo.Readme, -1)...)
-		}
-		for _, topic := range repo.Topics {
-			matches = append(matches, re.FindAllStringSubmatch(topic, -1)...)
+		go func() {
+			signalChannel := make(chan os.Signal, 1)
+			signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGKILL)
+			<-signalChannel
+
+			fmt.Println("\nProgram interrupted, exiting...")
+			os.Exit(0)
+		}()
+
+		if (*token == "" && *tokenFile == "") || outputFile == "" {
+			fmt.Println("Token and output file must be specified!")
+			os.Exit(1)
 		}
 
-		for _, m := range matches {
-			if len(m) > 0 && m[0] != "" {
-				cleanedCVE := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(m[0], "_", "-"), "–", "-"))
-				if strings.Contains(target, cleanedCVE) {
-					reposPerCVE[cleanedCVE] = append(reposPerCVE[cleanedCVE], repo.Url)
-				}
+		if *query == "" && *queryFile == "" {
+			fmt.Println("Query must be specified!")
+			os.Exit(1)
+		}
+		githubToken := ""
+		if *tokenFile != "" {
+			file, err := os.Open(*tokenFile)
+			if err != nil {
+				fmt.Println("Couldn't open file to read token!")
+				os.Exit(1)
 			}
-		}
-	}
-	fmt.Println("Exiting processResults function")
-} */
+			defer file.Close()
 
+			tokenData, err := ioutil.ReadAll(file)
+			if err != nil {
+				fmt.Println("Couldn't read from token file!")
+				os.Exit(1)
+			}
+
+			githubToken = string(tokenData)
+		} else {
+			githubToken = *token
+		}
+
+		src := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: githubToken},
+		)
+		httpClient = oauth2.NewClient(context.Background(), src)
+		githubV4Client = githubv4.NewClient(httpClient)
+		reposResults = make([]RepositoryResult, 0)
+		reposPerCVE = make(map[string][]string)
+
+		searchQuery := *query
+		if searchQuery == "" {
+			file, err := os.Open(*queryFile)
+			if err != nil {
+				fmt.Println("Couldn't open file to read query!")
+				os.Exit(1)
+			}
+			defer file.Close()
+
+			queryData, err := ioutil.ReadAll(file)
+			if err != nil {
+				fmt.Println("Couldn't read from query file!")
+				os.Exit(1)
+			}
+
+			searchQuery = strings.Trim(string(queryData), " \n\r\t")
+		}
+
+		searchQuery += " in:readme in:description in:name"
+		getRepos(searchQuery, githubCreateDate, time.Now().UTC())
+
+		processResults()
+		writeOutput(outputFile, silent)
+
+}
+*/
 func main() {
 	token := flag.String("token-string", "", "Github token")
 	tokenFile := flag.String("token-file", "", "File to read Github token from")
-	query := flag.String("query-string", "", "GraphQL search query")
 	queryFile := flag.String("query-file", "", "File to read GraphQL search query from")
 	flag.StringVar(&outputFile, "o", "", "Output file name")
 	flag.BoolVar(&silent, "silent", false, "Don't print JSON output to stdout")
@@ -455,7 +441,7 @@ func main() {
 
 	go func() {
 		signalChannel := make(chan os.Signal, 1)
-		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGKILL)
 		<-signalChannel
 
 		fmt.Println("\nProgram interrupted, exiting...")
@@ -467,8 +453,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *query == "" && *queryFile == "" {
-		fmt.Println("Query must be specified!")
+	if *queryFile == "" {
+		fmt.Println("Query file must be specified!")
 		os.Exit(1)
 	}
 	githubToken := ""
@@ -499,31 +485,27 @@ func main() {
 	reposResults = make([]RepositoryResult, 0)
 	reposPerCVE = make(map[string][]string)
 
-	searchQuery := *query
-	if searchQuery == "" {
-		file, err := os.Open(*queryFile)
-		if err != nil {
-			fmt.Println("Couldn't open file to read query!")
-			os.Exit(1)
-		}
-		defer file.Close()
+	file, err := os.Open(*queryFile)
+	if err != nil {
+		fmt.Println("Couldn't open file to read query!")
+		os.Exit(1)
+	}
+	defer file.Close()
 
-		queryData, err := ioutil.ReadAll(file)
-		if err != nil {
-			fmt.Println("Couldn't read from query file!")
-			os.Exit(1)
-		}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		searchQuery := scanner.Text()
+		searchQuery += " in:readme in:description in:name"
+		getRepos(searchQuery, githubCreateDate, time.Now().UTC())
 
-		searchQuery = strings.Trim(string(queryData), " \n\r\t")
+		processResults()
+		writeOutput(outputFile+"_"+strings.ReplaceAll(searchQuery, "/", "_"), silent)
+		reposResults = make([]RepositoryResult, 0)
+		reposPerCVE = make(map[string][]string)
 	}
 
-	// Set a global variable for targetCVE to equal the value of searchQuery
-	targetCVE := searchQuery
-
-	searchQuery += " in:readme in:description in:name"
-	getRepos(searchQuery, githubCreateDate, time.Now().UTC())
-
-	processResults()
-	writeOutput(outputFile, false)
-
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading query file:", err)
+		os.Exit(1)
+	}
 }
