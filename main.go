@@ -522,7 +522,7 @@ func main() {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		searchQuery := scanner.Text()
-		targetCVE := searchQuery
+		targetCVE = searchQuery
 		searchQuery += " in:readme in:description in:name"
 		getRepos(searchQuery, githubCreateDate, time.Now().UTC())
 
