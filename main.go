@@ -96,6 +96,7 @@ var (
 	delayMutex       = &sync.Mutex{}
 	outputFile       string
 	silent           bool
+	targetCVE        string
 )
 
 func getReadme(repoUrl string) string {
@@ -286,7 +287,7 @@ func handleGraphQLAPIError(err error) {
 	os.Exit(0)
 }
 
-func writeOutput(fileName string, silent bool) {
+/* func writeOutput(fileName string, silent bool) {
 	if len(reposResults) == 0 {
 		return
 	}
@@ -294,6 +295,30 @@ func writeOutput(fileName string, silent bool) {
 	if err != nil {
 		fmt.Println(err)
 		fmt.Println("Couldn't create output file")
+	}
+	defer output.Close()
+
+	for id, repoURLs := range reposPerCVE {
+		for _, r := range repoURLs {
+			_, _ = io.WriteString(output, id+" - "+r+"\n")
+		}
+	}
+
+	if !silent {
+		data, _ := json.MarshalIndent(reposResults, "", "   ")
+		fmt.Println(string(data))
+	}
+} */
+
+func writeOutput(fileName string, silent bool) {
+	if len(reposResults) == 0 {
+		return
+	}
+	output, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("Couldn't create or open output file")
+		return
 	}
 	defer output.Close()
 
@@ -335,8 +360,10 @@ func processResults() {
 		if len(ids) > 0 {
 			reposResults[i].CVEIDs = make([]string, 0)
 			for id := range ids {
-				reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
-				reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
+				if strings.Contains(targetCVE, id) {
+					reposResults[i].CVEIDs = append(reposResults[i].CVEIDs, id)
+					reposPerCVE[id] = append(reposPerCVE[id], repo.Url)
+				}
 			}
 		}
 
@@ -495,11 +522,12 @@ func main() {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		searchQuery := scanner.Text()
+		targetCVE := searchQuery
 		searchQuery += " in:readme in:description in:name"
 		getRepos(searchQuery, githubCreateDate, time.Now().UTC())
 
 		processResults()
-		writeOutput(outputFile+"_"+strings.ReplaceAll(searchQuery, "/", "_"), silent)
+		writeOutput(outputFile, silent)
 		reposResults = make([]RepositoryResult, 0)
 		reposPerCVE = make(map[string][]string)
 	}
