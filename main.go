@@ -289,6 +289,7 @@ func handleGraphQLAPIError(err error) {
 
 func writeOutput(fileName string, silent bool) {
 	os.Stdout.WriteString("Entering writeOutput function with fileName: " + fileName + "\n")
+	os.Stdout.WriteString(fmt.Sprintf("REPOS: %+v\n", reposPerCVE[targetCVE]))
 	if len(reposPerCVE[targetCVE]) == 0 {
 		os.Stdout.WriteString("No Repos for " + targetCVE + "\n")
 		return
@@ -335,8 +336,10 @@ func processResults(results []RepositoryResult, target string) {
 		}
 
 		for _, m := range matches {
+			os.Stdout.WriteString(fmt.Sprintf("M: %+v\n", m))
 			if len(m) > 0 && m[0] != "" {
 				cleanedCVE := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(m[0], "_", "-"), "–", "-"))
+				os.Stdout.WriteString(fmt.Sprintf("cleanedCVE: %+v\n", cleanedCVE))
 				if strings.Contains(target, cleanedCVE) {
 					reposPerCVE[cleanedCVE] = append(reposPerCVE[cleanedCVE], repo.Url)
 				}
