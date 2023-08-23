@@ -180,7 +180,7 @@ errHandle:
 							delayMutex.Unlock()
 							continue
 						}
-						untilNextReset := rateLimit.ResetAt.Sub(time.Now()).Milliseconds()
+						untilNextReset := time.Until(rateLimit.ResetAt).Milliseconds()
 						if untilNextReset < 0 {
 							untilNextReset = time.Hour.Milliseconds()
 						}
@@ -267,7 +267,7 @@ errHandle:
 
 func handleGraphQLAPIError(err error) {
 	if err == nil || strings.Contains(err.Error(), "limit exceeded") {
-		untilNextReset := rateLimit.ResetAt.Sub(time.Now())
+		untilNextReset := time.Until(rateLimit.ResetAt)
 		if untilNextReset < time.Minute {
 			rateLimit.ResetAt = time.Now().Add(untilNextReset).Add(time.Hour)
 			time.Sleep(untilNextReset + 3*time.Second)
@@ -323,7 +323,7 @@ func processResults() {
 		}
 
 		for _, m := range matches {
-			if m != nil && len(m) > 0 {
+			if len(m) > 0 {
 				if m[0] != "" {
 					m[0] = strings.ToUpper(m[0])
 					m[0] = strings.ReplaceAll(m[0], "_", "-")
@@ -441,7 +441,7 @@ func main() {
 
 	go func() {
 		signalChannel := make(chan os.Signal, 1)
-		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGKILL)
+		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 		<-signalChannel
 
 		fmt.Println("\nProgram interrupted, exiting...")
